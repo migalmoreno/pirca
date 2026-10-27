@@ -37,8 +37,8 @@ Pirca ships sensible defaults. You provide a =config.edn= and the markup for you
 #+begin_src clojure
 {:site {:title    "My Blog"
         :domain   "example.com"
-        :fullname "Jane Doe"
-        :email    "jane@example.com"}
+        :fullname "John Doe"
+        :email    "jdoe@example.com"}
  :builders {:atom   {:prefix "/blog"}
             :repo   {:forge-base-url "https://forge.example.com/me/"}
             :assets {}}}
@@ -91,7 +91,7 @@ that returns/handles artifacts, then reference it in your =:system=. Your builde
 Components receive their inputs as arguments. The useful ones:
 
 - =:config= :: the validated config map.
-- =:posts= :: the post collection. Use =:pirca.ssg.readers.dir-tagging/reader= for posts tagged with their directory (e.g. =posts/projects/*= as projects), or =:pirca.ssg.readers.org/reader= for untagged posts.
+- =:posts= :: the post collection, from =:pirca.ssg.reader/posts=. Posts are read after project preparation, and are tagged with their directory (e.g. =posts/projects/*= as projects) when the =:repo= builder is enabled.
 - =:output= :: the output directory (already cleaned once by =:pirca.ssg.system/output=). Write artifacts with =pirca.ssg.core/write-artifacts!=.
 
 #+begin_src clojure
@@ -118,10 +118,33 @@ Components receive their inputs as arguments. The useful ones:
 :system
 {:my.site.archive/archive
  {:output #ig/ref :pirca.ssg.system/output
-  :posts  #ig/ref :pirca.ssg.readers.dir-tagging/reader}}
+  :posts  #ig/ref :pirca.ssg.reader/posts}}
 #+end_src
 
 A builder that must run *before* posts are read (like repo mirroring) simply depends on =:config= only; integrant orders it before the reader components.
+
+If you compile ClojureScript into the site, have shadow write its bundle directly into the output directory and make the CLJS component depend on =:pirca.ssg.system/output= and on the assets builder. Otherwise the assets copy can run before the bundle exists (or the output clean can wipe it), leaving =main.js= missing and a static host serving an HTML fallback for it (a =text/html= MIME mismatch with =X-Content-Type-Options: nosniff=).
+
+#+begin_src clojure
+;; shadow-cljs.edn
+{:builds
+ {:frontend {:target     :browser
+             :output-dir "site/assets/js"
+             :asset-path "/assets/js"
+             :modules    {:main
+                          {:init-fn my.site.frontend/mount-root}}}}}
+
+(defmethod ig/init-key ::cljs
+  [_ _]
+  (shadow.cljs.devtools.server/start!)
+  (shadow.cljs.devtools.api/release :frontend)
+  (shadow.cljs.devtools.server/stop!)
+  nil)
+
+;; :system
+{:my.site/cljs {:output #ig/ref :pirca.ssg.system/output
+                :assets #ig/ref :pirca.ssg.builders.assets/builder}}
+#+end_src
 
 * Org posts
 Org files are exported to HTML by Emacs. Its reader is configured under the
