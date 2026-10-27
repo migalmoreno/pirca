@@ -37,14 +37,14 @@
                   parent (into ["-p" parent])
                   true   (into ["-m" message]))]
     (str/trim
-     (:out (process/capture
-            {:extra-env {"GIT_AUTHOR_NAME"     author-name
-                         "GIT_AUTHOR_EMAIL"    author-email
-                         "GIT_COMMITTER_NAME"  committer-name
-                         "GIT_COMMITTER_EMAIL" committer-email
-                         "GIT_AUTHOR_DATE"     now
-                         "GIT_COMMITTER_DATE"  now}}
-            args)))))
+     (:out (apply process/capture
+                  {:extra-env {"GIT_AUTHOR_NAME"     author-name
+                               "GIT_AUTHOR_EMAIL"    author-email
+                               "GIT_COMMITTER_NAME"  committer-name
+                               "GIT_COMMITTER_EMAIL" committer-email
+                               "GIT_AUTHOR_DATE"     now
+                               "GIT_COMMITTER_DATE"  now}}
+                  args)))))
 
 (defn- reset-public!
   "(Re)establish `public` and public-source as an exact, unrewritten copy
