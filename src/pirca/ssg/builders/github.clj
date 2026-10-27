@@ -85,16 +85,16 @@
 (defn ensure-repo!
   "Create owner/repo-name on GitHub if it doesn't exist, then bring its
   description, issues, wiki, projects, and Actions settings in sync.
-  actions? controls whether GitHub Actions is enabled for the repo. When
-  github-topics is non-nil, also reconciles the repo's GitHub topics with it
-  (added/removed via a diff against the repo's current topics), since gh
-  only exposes additive/subtractive topic edits, not a replace-all."
+  actions? controls whether GitHub Actions is enabled for the repo. The repo's
+  GitHub topics are reconciled with github-topics (added/removed via a diff
+  against the repo's current topics), since gh only exposes additive and
+  subtractive topic edits, not a replace-all. A missing github-topics clears
+  all topics, mirroring config as the source of truth."
   [owner repo-name synopsis actions? github-topics]
   (when-not (repo-exists? owner repo-name)
     (create-repo! owner repo-name))
   (sync-settings! owner repo-name synopsis actions?)
-  (when (some? github-topics)
-    (sync-topics! owner repo-name github-topics)))
+  (sync-topics! owner repo-name (or github-topics [])))
 
 (defn- list-repos
   [owner]
