@@ -1,0 +1,11 @@
+.clj-kondo
+.cpcache
+.lsp
+.nrepl-port
+.org-mode-reader-cache
+.git-cache
+.shadow-cljs
+node_modules
+assets/js/
+dist/
+.direnv

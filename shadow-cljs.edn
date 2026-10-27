@@ -1,0 +1,6 @@
+{:source-paths ["src"]
+ :deps true
+ :builds {:frontend {:target     :browser
+                     :output-dir "dist"
+                     :asset-path "/assets/js"
+                     :modules    {:main {:init-fn pirca.ssg.frontend.core/mount-root}}}}}

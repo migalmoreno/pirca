@@ -1,0 +1,146 @@
+#+title: pirca
+#+OPTIONS: toc:nil num:nil
+Pirca is a composable static-site generator for blogs and git-backed project portfolios, written in Clojure(Script). Compared to other static-site generators it is more declarative in how the build is composed, but less turnkey.
+
+You describe your site in a =config.edn=: site metadata, which builders and readers to enable, their options, and (optionally) a =:system= map wiring the components. The build is assembled declaratively from those components rather than a fixed template pipeline. Outputs (feeds, assets, repo serving, or your own) are components, so you extend it by declaring additional ones.
+
+* Features
+- Reads posts from a directory and renders them to HTML.
+- Blog and portfolio collections, with Atom feeds overall, per tag, and per project commit.
+- Org-mode posts rendered through Emacs.
+- Mirrors project repos onto posts, serves them over dumb HTTP so visitors can browse and clone them, and emits commit-based feeds.
+- Optionally mirrors project repos to Forgejo/GitHub.
+- A dev server that rebuilds on changes.
+- A small browser frontend with code highlighting and a git file viewer.
+- A portable core (.cljc); runs on the JVM today (Node by design).
+
+* Requirements
+- Clojure 1.12+ (JVM).
+- =emacs= (or =emacsclient=) with =htmlize=, for org posts.
+- =git=, for the project/repo features.
+- For Node: Node.js 18+.
+
+* Install
+Pin a git SHA for reproducible builds:
+
+#+begin_src clojure
+;; deps.edn
+{:deps {migalmoreno/pirca
+        {:git/url "https://github.com/migalmoreno/pirca.git"
+         :git/sha "<full-40-char-commit-sha>"}}}
+#+end_src
+
+* Usage
+Pirca ships sensible defaults. You provide a =config.edn= and the markup for your pages.
+
+#+name: config.edn
+#+begin_src clojure
+{:site {:title    "My Blog"
+        :domain   "example.com"
+        :fullname "Jane Doe"
+        :email    "jane@example.com"}
+ :builders {:atom   {:prefix "/blog"}
+            :repo   {:forge-base-url "https://forge.example.com/me/"}
+            :assets {}}}
+#+end_src
+
+All keys are optional except =:site :title=.
+
+Then run the integrant system. =pirca.ssg.system/config= reads the classpath
+=config.edn=, merges pirca's default components with your =:system=, and
+returns the system map:
+
+#+begin_src clojure
+(ns my.site
+  (:require
+   [integrant.core :as ig]
+   [pirca.ssg.system :as system]))
+
+(defn -main [& _]
+  (ig/init (system/config)))
+#+end_src
+
+#+begin_src shell
+clojure -M -m my.site
+#+end_src
+
+* Development
+pirca includes a dev server. Combine it with [[https://github.com/weavejester/integrant][integrant.repl]] so that loading a changed namespace re-runs only the affected components:
+
+#+begin_src clojure
+(require '[integrant.repl :as ig-repl]
+         '[pirca.ssg.serve :as serve]
+         '[pirca.ssg.system :as system])
+
+(ig-repl/set-prep! system/config)
+
+(defn build! [] (ig-repl/reset))
+
+(defn serve! []
+  (serve/serve! build! {:dir "site"
+                        :port "8080"
+                        :dirs ["posts" "assets"]}))
+#+end_src
+
+Pair it with =shadow-cljs= watch if you use the bundled frontend.
+
+* Extending with your own builders
+Every output is an integrant component. To add your own, define an =init-key=
+that returns/handles artifacts, then reference it in your =:system=. Your builder runs because it is present in =:system=; the =:builders= map only enables and configures pirca's built-in components.
+
+Components receive their inputs as arguments. The useful ones:
+
+- =:config= :: the validated config map.
+- =:posts= :: the post collection. Use =:pirca.ssg.readers.dir-tagging/reader= for posts tagged with their directory (e.g. =posts/projects/*= as projects), or =:pirca.ssg.readers.org/reader= for untagged posts.
+- =:output= :: the output directory (already cleaned once by =:pirca.ssg.system/output=). Write artifacts with =pirca.ssg.core/write-artifacts!=.
+
+#+begin_src clojure
+(ns my.site.archive
+  (:require
+   [hiccup2.core :as h]
+   [integrant.core :as ig]
+   [pirca.ssg.core :as core]
+   [pirca.ssg.post :as post]))
+
+(defmethod ig/init-key ::archive
+  [_ {:keys [output posts]}]
+  (let [sorted (post/posts-reverse-chronological posts)]
+    (core/write-artifacts!
+     output
+     [{:path    "archive.html"
+       :content (str (h/html
+                      [:ul (for [p sorted]
+                             [:li (post/post-title p)])]))}]))
+  nil)
+#+end_src
+
+#+begin_src clojure
+:system
+{:my.site.archive/archive
+ {:output #ig/ref :pirca.ssg.system/output
+  :posts  #ig/ref :pirca.ssg.readers.dir-tagging/reader}}
+#+end_src
+
+A builder that must run *before* posts are read (like repo mirroring) simply depends on =:config= only; integrant orders it before the reader components.
+
+* Org posts
+Org files are exported to HTML by Emacs. Its reader is configured under the
+=:readers :org= key in =config.edn=:
+
+- =:cache-dir= :: cache directory.
+- =:cache?= :: enable or disable caching.
+- =:preamble= :: an elisp file loaded before export.
+- =:emacsclient?= :: use =emacsclient= instead of =emacs --batch=.
+- =:daemon-name= :: emacsclient daemon socket name.
+
+For example:
+
+#+begin_src clojure
+:readers {:org {:emacsclient? true
+                :preamble    #env PIRCA_ORG_PREAMBLE}}
+#+end_src
+
+* Node
+The build and feed namespaces compile to Node with ClojureScript; install
+=@babashka/fs= and =js-joda=. A Node serve backend is planned; until then, use
+the JVM dev server or any static file server.
