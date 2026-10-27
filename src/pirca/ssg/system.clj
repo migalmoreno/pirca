@@ -23,7 +23,8 @@
    :pirca.ssg.readers.org/reader            {:config (ig/ref :pirca.ssg.config/config)}
    :pirca.ssg.readers.dir-tagging/reader    {:posts (ig/ref :pirca.ssg.readers.org/reader)}
    :pirca.ssg.builders.projects/repos       {:config (ig/ref :pirca.ssg.config/config)}
-   :pirca.ssg.builders.projects/github      {:config (ig/ref :pirca.ssg.config/config)}
+   :pirca.ssg.builders.projects/github      {:config (ig/ref :pirca.ssg.config/config)
+                                             :repos  (ig/ref :pirca.ssg.builders.projects/repos)}
    ::output                                 {:config (ig/ref :pirca.ssg.config/config)}
    :pirca.ssg.builders.atom/builder         {:config (ig/ref :pirca.ssg.config/config)
                                              :output (ig/ref ::output)
