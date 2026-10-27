@@ -15,8 +15,7 @@
    [integrant.core :as ig]
    [pirca.ssg.platform :as platform]
    [pirca.ssg.post :as post]
-   [pirca.ssg.process :as process]
-   [pirca.ssg.reader :as reader]))
+   [pirca.ssg.process :as process]))
 
 (def ^:private default-opts
   {:cache-dir   ".org-mode-reader-cache"
@@ -188,13 +187,5 @@
 
 (defmethod ig/init-key ::reader
   [_ {:keys [config]}]
-  (let [opts (:org (:readers config))
-        dir  (get config :posts-dir "posts")
-        defaults (let [{:keys [fullname email]} (:site config)]
-                   (cond-> {}
-                     fullname (assoc :author fullname)
-                     email    (assoc :email email)))
-        posts (doall (reader/read-posts dir [(org-reader opts)]))]
-    (if (seq defaults)
-      (map #(update % :metadata (fn [m] (merge defaults m))) posts)
-      posts)))
+  (when-let [opts (:org (:readers config))]
+    (org-reader opts)))

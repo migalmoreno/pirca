@@ -4,8 +4,8 @@
    [integrant.core :as ig]
    [pirca.ssg.config :as config]
    [pirca.ssg.core :as core]
+   [pirca.ssg.reader]
    [pirca.ssg.readers.org]
-   [pirca.ssg.readers.dir-tagging]
    [pirca.ssg.builders.projects]
    [pirca.ssg.builders.atom]
    [pirca.ssg.builders.repo]
@@ -21,14 +21,16 @@
   {:pirca.ssg.config/config                 {}
    :pirca.ssg.readers.org/daemon            {:config (ig/ref :pirca.ssg.config/config)}
    :pirca.ssg.readers.org/reader            {:config (ig/ref :pirca.ssg.config/config)}
-   :pirca.ssg.readers.dir-tagging/reader    {:posts (ig/ref :pirca.ssg.readers.org/reader)}
+   :pirca.ssg.reader/posts                  {:config  (ig/ref :pirca.ssg.config/config)
+                                             :readers [(ig/ref :pirca.ssg.readers.org/reader)]
+                                             :repos   (ig/ref :pirca.ssg.builders.projects/repos)}
    :pirca.ssg.builders.projects/repos       {:config (ig/ref :pirca.ssg.config/config)}
    :pirca.ssg.builders.projects/github      {:config (ig/ref :pirca.ssg.config/config)
                                              :repos  (ig/ref :pirca.ssg.builders.projects/repos)}
    ::output                                 {:config (ig/ref :pirca.ssg.config/config)}
    :pirca.ssg.builders.atom/builder         {:config (ig/ref :pirca.ssg.config/config)
                                              :output (ig/ref ::output)
-                                             :posts  (ig/ref :pirca.ssg.readers.dir-tagging/reader)}
+                                             :posts  (ig/ref :pirca.ssg.reader/posts)}
    :pirca.ssg.builders.repo/builder         {:config (ig/ref :pirca.ssg.config/config)
                                              :output (ig/ref ::output)}
    :pirca.ssg.builders.assets/builder       {:config (ig/ref :pirca.ssg.config/config)

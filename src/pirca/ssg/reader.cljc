@@ -12,7 +12,10 @@
   Simple readers can ignore it by using (fn [file & _] ...)."
   (:require
    [babashka.fs :as fs]
-   [pirca.ssg.post :as post]))
+   [integrant.core :as ig]
+   [pirca.ssg.config :as config]
+   [pirca.ssg.post :as post]
+   [pirca.ssg.readers.dir-tagging :as dir]))
 
 (defn- find-reader
   [readers file]
@@ -38,3 +41,19 @@
                           (println "Warning: failed to read" (str file)
                                    "-"                       (.getMessage e))
                           nil))))))))
+
+(defmethod ig/init-key ::posts
+  [_ {:keys [config readers]}]
+  (let [posts-dir (get config :posts-dir "posts")
+        posts     (doall (read-posts posts-dir (remove nil? readers)))
+        tagged    (if (config/enabled? config :builders :repo)
+                    (dir/tag-posts posts)
+                    posts)
+        {:keys [fullname email]} (:site config)
+        defaults  (cond-> {}
+                    fullname (assoc :author fullname)
+                    email    (assoc :email email))]
+    (println "Read" (count tagged) "posts.")
+    (if (seq defaults)
+      (map #(update % :metadata (fn [m] (merge defaults m))) tagged)
+      tagged)))
